@@ -10,4 +10,4 @@
 #     exit
 # }
 
-Get-Process | Where-Object { $_.Path -match "oculus" -or $_.Name -like "OVR*" } | Stop-Process -Force
+Get-Process | ? { $_.Path -match "oculus" } | Stop-Process -Force
