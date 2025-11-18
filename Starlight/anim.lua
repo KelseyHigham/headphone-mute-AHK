@@ -4,117 +4,126 @@
 -- _rows:      counting vertically, top of the laptop to bottom, orthogonally not diagonally, every other frame is staggered. 61 on my model.
 -- columns(y): how many columns per row, taking the cutout into account. 9~34 on my model.
 -- init():     optional, runs once.
--- pixel(x,y): required, runs every frame. (change in Program.cs.)
+-- pixel(x,y): required, runs every pixel, ~1000 times per frame. (change in Program.cs.)
+-- frame():    optional, runs every frame.
 _width  = 64  -- diagonal
 _height = 39  -- diagonal
 _xcenter = _width//2
-_ycenter = _height//2
+_ycenter = _height//2 - 6  -- there are 6 lines below 0
 
-
-
--- ASCII range 0x20-0x5F, or 32-95
-font = {}
-font[1] = "     █  █ █ ███ ███ ███ ███  █  ██   █  ██   █  "
-font[2] = "     █  █ █ ███ ███ ███ ███  █  █     █ ███ ███ "
-font[3] = "            ███ ███ ███ ███     █     █  ██  █  "
-font[4] = "     █      ███ ███ ███ ███      █   ██         "
-
-font[1] = font[1] .. "             ██ ██   █  ██  ██  █ █ ███ ███ ███ "
-font[2] = font[2] .. "    ███      █  █ █ ██    █   █ █ █ █   █     █ "
-font[3] = font[3] .. " █           █  █ █  █  █    ██ ███  ██ ███   █ "
-font[4] = font[4] .. "██       █  ██   ██ ███ ███ ██    █ ██  ███   █ "
-
-font[1] = font[1] .. "███ ███  █   █  ███ ███ █   ███ ███ ███ ██  ███ "
-font[2] = font[2] .. "███ █ █          █       █    █ █ █ █ █ ███ █   "
-font[3] = font[3] .. "█ █ ███      █    █ ███ ███     █ █ ███ █ █ █   "
-font[4] = font[4] .. "███   █  █  ██               █  ██  █ █ ███ ███ "
-
-font[1] = font[1] .. "██  ███ ███ ███ █ █ ███   █ █ █ █   ███ ██  ███ "
-font[2] = font[2] .. "█ █ ██  █   █   ███  █    █ ███ █   ███ █ █ █ █ "
-font[3] = font[3] .. "█ █ █   ██  █ █ █ █  █  █ █ ██  █   █ █ █ █ █ █ "
-font[4] = font[4] .. "███ ███ █   ███ █ █ ███ ███ █ █ ███ █ █ █ █ ███ "
-
-font[1] = font[1] .. "███ ███ ███ ███ ███ █ █ █ █ █ █ █ █ █ █ ███ ██  "
-font[2] = font[2] .. "█ █ █ █ ███ █    █  █ █ █ █ █ █  ██ ███   █ █   "
-font[3] = font[3] .. "███ ███ ██   ██  █  █ █  ██ ███ ██   █  █   █   "
-font[4] = font[4] .. "█     █ █ █ ███  █  ███   █ ███ █ █  █  ███ ██  "
-
-font[1] = font[1] .. "█    ██ ██      "
-font[2] = font[2] .. " █    █ █ █     "
-font[3] = font[3] .. " █    █         "
-font[4] = font[4] .. "  █  ██     ███ "
-
-
-
--- █       ▄▀ ▄▀
--- █▀▄ █ █ █▀ █▀ ▄▀▄ █▄▀
--- █▄▀ ▀▄█ █  █  ▀█▄ █
-
-buffer = {}
-function set(x, y, value)
-    buffer[y * _height + x] = value
+function sixstep(x, y, dir, steps)
+    if steps == nil then steps = 1 end
+    local step = {
+        {x = 1, y = 0},
+        {x = 0, y = 1},
+        {x = -1, y = 1},
+        {x = -1, y = 0},
+        {x = 0, y = -1},
+        {x = 1, y = -1}
+    }
+    return x + step[dir].x*steps, y + step[dir].y*steps
 end
-function get(x, y)
-    if buffer[y * _height + x] then
-        return buffer[y * _height + x]
+
+
+
+
+-- █▀▄▀▄ ▄▀█ ▀▀█▀ ▄▀▄
+-- █ █ █ ▀▄█ ▄█▄▄ ▀█▄
+
+mazebuf = {}
+maze_x = _xcenter
+maze_y = _ycenter
+maze_dir = math.random(6)
+turning = true
+advancing = true
+function maze()
+    -- set(_xcenter, _ycenter, 1, mazebuf)
+    if turning then
+        turning = false
+        maze_dir = (maze_dir - 1 + math.random(3) - 2) % 6 + 1
+        try_x, try_y = sixstep(maze_x, maze_y, maze_dir, 2)
+        if get(try_x, try_y, mazebuf) < .1 then
+            advancing = true
+        else
+            advancing = false
+        end
     else
-        return 0
+        turning = true
     end
+    if advancing then
+        maze_x, maze_y = sixstep(maze_x, maze_y, maze_dir, 1)
+        set(maze_x, maze_y, 1, mazebuf)
+    end
+    text("x " .. string.format("%3d", maze_x) .. " y " .. string.format("%3d", maze_y), _xcenter, -5)
 end
--- set(_xcenter, _ycenter, 1)
-set(_xcenter+1, _ycenter, 1)
-set(_xcenter-1, _ycenter, 1)
-set(_xcenter, _ycenter+1, 1)
-set(_xcenter, _ycenter-1, 1)
-
-
-
---  ▄           ▄
--- ▀█▀ ▄▀▄ ▀▄▀ ▀█▀
---  ▀▄ ▀█▄ ▄▀▄  ▀▄
-
-function text(text, x, y)
-    -- loop through input string
-    for char_i = 1, #text do -- for each char
-        char = text:sub(char_i, char_i)
-        drawing = {}
-        ascii_code = string.byte(text, char_i, char_i)
-        -- lowercase -> uppercase
-        if 0x60 < ascii_code and ascii_code < 0x7F then
-            ascii_code = ascii_code - 0x20
-        end
-        drawing[1] = font[1]:sub(ascii_code*4, ascii_code*8)
-        drawing[2] = font[2]:sub(ascii_code*4, ascii_code*8)
-        drawing[3] = font[3]:sub(ascii_code*4, ascii_code*8)
-        drawing[4] = font[4]:sub(ascii_code*4, ascii_code*8)
-        for row = 1, 4 do -- for each row
-            drawing[row] = font[row]:sub(ascii_code*4, ascii_code*8)
-            for col = 1, 4 do -- for each column
-                if drawing[row]:sub(col) == "█" then
-                    set(x + char_i*4 + col, y + row, 1)
-                else
-                    set(x + char_i*4 + col, y + row, 0)
-                end
-            end
-        end
+function fade(custombuf)
+    for i,v in pairs(custombuf) do
+        custombuf[i] = v*.9
     end
 end
 
-text("HI", _xcenter, _ycenter)
+
+
+-- ▄▀
+-- █▀ █▄▀ ▄▀█ █▀▄▀▄ ▄▀▄
+-- █  █   ▀▄█ █ █ █ ▀█▄
+
+function frame()
+    buffer = {}
+    maze()
+    fade(mazebuf)
+
+    -- -- This draws a white pixel at (0,0) if beeeees[] hasn't been initialized??
+    -- -- That might be why maze() is giving me occasional black flashes.
+    -- text("d " .. beeeees[1].dir .. " x " .. beeeees[1].x .. " y " .. beeeees[1].y)
+
+    -- set(_xcenter+1, _ycenter)
+    -- set(_xcenter-1, _ycenter)
+    -- set(_xcenter, _ycenter+1)
+    -- set(_xcenter, _ycenter-1)
+    -- set(_xcenter, _ycenter)
+
+    -- text("kelly", _xcenter+3, 20)
+    -- text("is cool", _xcenter+4, 15)
+    -- text("kelly is cool")
+
+    -- -- calculate FPS
+    -- text(string.format("%.2f - %d", _time, _frames), _xcenter, -5)
+
+    -- -- punctuation test
+    -- text("~!@#$%^&*()", _xcenter+3, 10)
+    -- text("{}?+|_:<>`[]/", _xcenter+3, 5)
+    -- text("=\\-;',.", _xcenter, 0)
+    -- -- alphabet test
+    -- text("abcdefghi", _xcenter+3, 10)
+    -- text("jklmnopqr", _xcenter+3, 5)
+    -- text("stuvwxyz", _xcenter, 0)
+end
+
+
 
 --         ▀
 -- █▄▀ ▄▀█ █ █▀▄
 -- █   ▀▄█ █ █ █
 
+-- simple pseudo-random function for per-column raindrops
+local function hash(n)
+    n = (n ~ 61) ~ (n >> 16)
+    n = n + (n << 3)
+    n = n ~ (n >> 4)
+    n = n * 0x27d4eb2d
+    n = n ~ (n >> 15)
+    return n & 0xFFFFFFFF
+end
 function rain(x, y)
     -- taller sky means less frequent drops
     sky_height = 39*2
-    -- random value per column, consistent across frames
-    math.randomseed(x)
-    local drop_y_initial = math.random(sky_height)
-    math.randomseed(_frames)
+    -- -- random value per column, consistent across frames
+    -- math.randomseed(x)
+    -- local drop_y_initial = math.random(sky_height)
+    -- math.randomseed(os.time())
     -- raindrop position in this column
-    local drop_y = ((drop_y_initial % sky_height) - _frames) % (sky_height)
+    local drop_y = ((hash(x) % sky_height) - _frames) % (sky_height)
     -- draw a streak maybe
     if y < drop_y - 10 then return 0 end
     if y > drop_y then return 0 end
@@ -128,7 +137,7 @@ end
 -- █▄▀ ▀█▄ ▀█▄ ▄█▀
 
 function randx() return math.random(_width) end
-function randy() return math.random(_height) end
+function randy() return math.random(_height)-6 end
 beeeees = {}
 dances = {
     function(bee) bee.x = bee.x + 1 end,
@@ -160,38 +169,28 @@ end
 
 
 
-
-
 --     ▀         █
 -- █▀▄ █ ▀▄▀ ▄▀▄ █
 -- █▄▀ █ ▄▀▄ ▀█▄ █
 -- █
 function pixel(x, y)
+    -- flash on save
+    if _frames == 0 then return 1 end
+    -- if get(x, y, mazebuf) == 1 then return 1 end  -- found my ghost!!
     -- correct the fact that the x-coordinate is offset by the cutout
     tx = x + (cols - columns(y))
     ty = y
-    -- -- put the center at (0,0)
-    -- tx = tx - cols//2
-    -- ty = ty - _rows//2
-    -- convert to diagonal coordinates by transforming
-    -- input:
-    -- (0,0) (1,0) (2,0) (3,0) (4,0)
-    -- (0,1) (1,1) (2,1) (3,1) (4,1)
-    -- (0,2) (1,2) (2,2) (3,2) (4,2)
-    -- (0,3) (1,3) (2,3) (3,3) (4,3)
-    -- (0,4) (1,4) (2,4) (3,4) (4,4)
-    -- output:
-    -- (0,0) (1,1) (2,2) (3,3) (4,4)
-    -- (1,0) (2,1) (3,2) (4,3) (5,4)
-    -- (1,-1) (2,0) (3,1) (4,2) (5,3)
-    -- (2,-1) (3,0) (4,1) (5,2) (6,3)
-    -- (2,-2) (3,-1) (4,0) (5,1) (6,2)
+    -- convert to diagonal coordinates
     dx = tx + (1+ty)//2
     dy = tx + (1-ty)//2
+    if dx == 0 and dy == 0 then
+        frame()
+    end
     return clamp(
         gamma(rain(dx,dy)) * .1
         -- + gamma(bees(dx, dy))
         + gamma(get(dx, dy))
+        + gamma(get(dx, dy, mazebuf))
         , 0, 1)
 end
 
@@ -213,8 +212,97 @@ end
 
 
 
+-- █       ▄▀ ▄▀
+-- █▀▄ █ █ █▀ █▀ ▄▀▄ █▄▀
+-- █▄▀ ▀▄█ █  █  ▀█▄ █
+
+buffer = {}
+function set(x, y, value, custombuf)
+    y = y + 6
+    if value == nil then value = 1 end
+    if value == true then value = 1 end
+    if value == false then value = 0 end
+    if custombuf then
+        custombuf[y%_height * _width + x%_width] = value
+    else
+        buffer[y%_height * _width + x%_width] = value
+    end
+end
+function get(x, y, custombuf)
+    y = y + 6
+    if not custombuf then custombuf = buffer end
+    if custombuf[y * _width + x] then
+        return custombuf[y%_height * _width + x%_width]
+    else
+        return 0
+    end
+end
 
 
+
+--  ▄           ▄
+-- ▀█▀ ▄▀▄ ▀▄▀ ▀█▀
+--  ▀▄ ▀█▄ ▄▀▄  ▀▄
+
+-- ASCII range 0x20-0x5F, or 32-95
+font = {}
+font[1] = "     #  # # ### ### ### ###  #  ##   #  ##   #  "
+font[2] = "     #  # # ### ### ### ###  #  #     # ### ### "
+font[3] = "            ### ### ### ###     #     #  ##  #  "
+font[4] = "     #      ### ### ### ###      #   ##         "
+
+font[1] = font[1] .. "             ## ##   #  ##  ##  # # ### ### ### "
+font[2] = font[2] .. "    ###      #  # # ##    #   # ### #   #     # "
+font[3] = font[3] .. " #           #  # #  #  #    ##   #  ## ###   # "
+font[4] = font[4] .. "##       #  ##   ## ### ### ##    # ##  ###   # "
+
+font[1] = font[1] .. "### ###  #   #  ### ### #   ### ### ### ##  ### "
+font[2] = font[2] .. "### # #          #       #    # # # # # ### #   "
+font[3] = font[3] .. "# # ###      #    # ### ###     #   ### # # #   "
+font[4] = font[4] .. "###   #  #  ##               #   #  # # ### ### "
+
+font[1] = font[1] .. "##  ### ### ### # # ###   # # # #   ### ##  ### "
+font[2] = font[2] .. "# # ##  #   #   ###  #    # ### #   ### # # # # "
+font[3] = font[3] .. "# # #   ##  # # # #  #  # # ##  #   # # # # # # "
+font[4] = font[4] .. "### ### #   ### # # ### ### # # ### # # # # ### "
+
+font[1] = font[1] .. "### ### ### ### ### # # # # # # # # # # ### ##  "
+font[2] = font[2] .. "# # # # ### #    #  # # # # # #  ## ###   # #   "
+font[3] = font[3] .. "### ### ##   ##  #  # #  ## ### ##   #  #   #   "
+font[4] = font[4] .. "#     # # # ###  #  ###   # ### # #  #  ### ##  "
+
+font[1] = font[1] .. "#    ## ##      "
+font[2] = font[2] .. " #    # # #     "
+font[3] = font[3] .. " #    #         "
+font[4] = font[4] .. "  #  ##     ### "
+
+-- Simplified math by treating everything as 0-indexed, and passing in "+1" to Lua functions.
+function text(text, x, y)
+    if x == nil then x = _xcenter end
+    if y == nil then y = 0 end
+    text = tostring(text)
+    -- loop through input string
+    for char_i = 0, #text-1 do
+        char = text:sub(char_i+1, char_i+1)
+        glyph = {}
+        ascii_code = string.byte(text, char_i+1)
+        -- lowercase -> uppercase
+        if 0x60 <= ascii_code and ascii_code <= 0x7F then
+            ascii_code = ascii_code - 0x20
+        end
+        my_code = (ascii_code - 0x20) % 0x60
+        for row = 0, 3 do
+            glyph[row+1] = font[row+1]:sub(my_code*4 + 1, my_code*8 + 1)
+            for col = 0, 3 do
+                if glyph[row+1]:sub(col+1, col+1) == "#" then
+                    set(x + char_i*4 - #text/2*4 + col, y + 3-row, 1)
+                else
+                    set(x + char_i*4 - #text/2*4 + col, y + 3-row, 0)
+                end
+            end
+        end
+    end
+end
 
 
 
